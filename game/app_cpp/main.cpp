@@ -4,12 +4,17 @@
 
 #define SCREEN_HEIGHT 800
 #define SCREEN_WIDTH 800
-#define VELOCITY_RANGE_MIN 0.05
-#define VELOCITY_RANGE_MAX 0.3
+#define VELOCITY_RANGE 2
+#define CONNECTION_RAD 80
+#define DOTS_AMOUNT 600
 
 
 std::random_device rd;
 std::default_random_engine eng(rd());
+
+bool operator==(Vector2 lhs, Vector2 rhs){
+	return lhs.x == rhs.x && lhs.y == rhs.y;
+}
 
 class Dot{
 	public:
@@ -17,7 +22,7 @@ class Dot{
 		float radius;
 		Dot(){
 			position = Vector2{(float)GetRandomValue(0, SCREEN_WIDTH), (float)GetRandomValue(0,SCREEN_HEIGHT)};
-			std::uniform_real_distribution<float> distr(VELOCITY_RANGE_MIN, VELOCITY_RANGE_MAX);
+			std::uniform_real_distribution<float> distr(-VELOCITY_RANGE, VELOCITY_RANGE);
 			xVel = distr(eng); 
 			yVel = distr(eng);
 			radius = (float)GetRandomValue(1, 4);
@@ -53,12 +58,12 @@ class Dot{
 
 int main ()
 {
-	Dot dots[20];
-	for(int i = 0; i < 20; i++){
+	Dot dots[DOTS_AMOUNT];
+	for(int i = 0; i < DOTS_AMOUNT; i++){
 		dots[i] = Dot();
 	}
 	// set up the window
-	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Connection Sim");
+	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Connection simulation");
 
 	SetTargetFPS(60);
 	
@@ -67,11 +72,21 @@ int main ()
 	{
 		// drawing
 		BeginDrawing();
-		ClearBackground(GRAY);
+		ClearBackground(WHITE);
 
-		for(int i = 0; i < 20; i++){
+		for(int i = 0; i < DOTS_AMOUNT; i++){
 			dots[i].Move();
 			DrawCircle(dots[i].position.x, dots[i].position.y, dots[i].radius, BLACK);
+		}
+
+		for(int i = 0; i < DOTS_AMOUNT; i++){
+			for(int j = 0; j < DOTS_AMOUNT; j++){
+				if(dots[i].position == dots[j].position)
+					continue;
+				if(CheckCollisionCircles(dots[i].position, CONNECTION_RAD, dots[j].position, dots[j].radius)){
+					DrawLine(dots[i].position.x, dots[i].position.y, dots[j].position.x, dots[j].position.y, BLACK);
+				}
+			}
 		}
 		
 		EndDrawing();
