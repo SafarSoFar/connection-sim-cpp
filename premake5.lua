@@ -39,6 +39,7 @@ function link_to(lib)
     links (lib)
     includedirs ("../"..lib.."/include")
     includedirs ("../"..lib.."/" )
+    includedirs ("../"..lib.."/src" )
 end
 
 function download_progress(total, current)

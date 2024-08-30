@@ -42,6 +42,7 @@ project (baseName)
     includedirs { "src" }
     includedirs { "include" }
     
+    link_to("../../imgui")
     link_raylib()
 
 -- To link to a lib use link_to("LIB_FOLDER_NAME")
