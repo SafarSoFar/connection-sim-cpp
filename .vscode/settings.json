@@ -9,6 +9,11 @@
 		"**/*.exe": true,
 	},
 	"files.associations": {
-		"random": "cpp"
+		"random": "cpp",
+		"vector": "cpp",
+		"set": "cpp",
+		"unordered_set": "cpp",
+		"utility": "cpp",
+		"iostream": "cpp"
 	}
 }

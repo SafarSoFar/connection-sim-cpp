@@ -1,37 +1,53 @@
 #include <iostream>
+#include <vector>
+#include <unordered_set>
 #include <random>
 #include "raylib.h"
+#include "../example_library/src/imgui.h"
+#include "../example_library/src/rlImGui.h"
 
 #define SCREEN_HEIGHT 800
 #define SCREEN_WIDTH 800
-#define VELOCITY_RANGE 2
-#define CONNECTION_RAD 80
-#define DOTS_AMOUNT 600
+
+int g_connectionLenLimit = 50;
+float g_velocityRange = 1.0f;
+int g_dotsAmount = 600;
+
+class Dot;
+
+std::vector<Dot> g_dots;
 
 
 std::random_device rd;
 std::default_random_engine eng(rd());
 
-bool operator==(Vector2 lhs, Vector2 rhs){
+bool operator==(const Vector2 &lhs, const Vector2 &rhs){
 	return lhs.x == rhs.x && lhs.y == rhs.y;
 }
+
 
 class Dot{
 	public:
 		Vector2 position;
 		float radius;
+		int curAreaIndexx = -1; 
+		int curAreaIndexy = -1; 
 		Dot(){
 			position = Vector2{(float)GetRandomValue(0, SCREEN_WIDTH), (float)GetRandomValue(0,SCREEN_HEIGHT)};
-			std::uniform_real_distribution<float> distr(-VELOCITY_RANGE, VELOCITY_RANGE);
-			xVel = distr(eng); 
-			yVel = distr(eng);
 			radius = (float)GetRandomValue(1, 4);
+			SetRandomVelocity();
 		}
 		void Move(){
 			position.x += xVel;
 			position.y += yVel;
 			BoundaryLimit();
 		}
+		void SetRandomVelocity(){
+			std::uniform_real_distribution<float> distr(-g_velocityRange, g_velocityRange);
+			xVel = distr(eng); 
+			yVel = distr(eng);
+		}
+
 	private:
 		float xVel;
 		float yVel;
@@ -56,43 +72,87 @@ class Dot{
 
 };
 
+void CreateDots(){
+	for(int i = 0; i < g_dotsAmount; i++){
+		g_dots.push_back(Dot());
+	}
+}
+
+
 int main ()
 {
-	Dot dots[DOTS_AMOUNT];
-	for(int i = 0; i < DOTS_AMOUNT; i++){
-		dots[i] = Dot();
-	}
+
+	CreateDots();	
+
 	// set up the window
-	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Connection simulation");
+	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Shattered dimension");
 
 	SetTargetFPS(60);
-	
+	rlImGuiSetup(true);
+
+
 	// game loop
 	while (!WindowShouldClose())
 	{
 		// drawing
 		BeginDrawing();
 		ClearBackground(WHITE);
+		rlImGuiBegin();
 
-		for(int i = 0; i < DOTS_AMOUNT; i++){
-			dots[i].Move();
-			DrawCircle(dots[i].position.x, dots[i].position.y, dots[i].radius, BLACK);
+		ImGui::SliderInt("Connection length limit", &g_connectionLenLimit, 1,200);
+		if(ImGui::SliderFloat("Velocity Range", &g_velocityRange, 0.5f, 5.0f)){
+			for(int i = 0; i < g_dotsAmount; i++){
+				g_dots[i].SetRandomVelocity();
+			}
+		}
+		if(ImGui::SliderInt("Dots amount", &g_dotsAmount, 20, 600)){
+			g_dots.clear();
+			CreateDots();
 		}
 
-		for(int i = 0; i < DOTS_AMOUNT; i++){
-			for(int j = 0; j < DOTS_AMOUNT; j++){
-				if(dots[i].position == dots[j].position)
+		for(int i = 0; i < g_dotsAmount; i++){
+			g_dots[i].Move();
+			DrawCircle(g_dots[i].position.x, g_dots[i].position.y, g_dots[i].radius, BLACK);
+			int x = 0;
+			int y = 0;
+
+			// Coords in grid
+			if((int)g_dots[i].position.x > 0){
+				x = (int)g_dots[i].position.x * (SCREEN_WIDTH / g_connectionLenLimit) / SCREEN_WIDTH;
+			}
+			if((int)g_dots[i].position.y > 0){
+				y = (int)g_dots[i].position.y * (SCREEN_WIDTH / g_connectionLenLimit) / SCREEN_WIDTH;
+			}
+			g_dots[i].curAreaIndexx = x;
+			g_dots[i].curAreaIndexy = y;
+			
+
+		}
+
+
+		/*for(int i = 0; i < SCREEN_WIDTH; i+=CONNECTION_LIMIT){
+			DrawLine(i, 0, i, SCREEN_HEIGHT, BLACK);
+		}
+		for(int i = 0; i < SCREEN_HEIGHT; i+=CONNECTION_LIMIT){
+			DrawLine(0, i, SCREEN_WIDTH,i, BLACK);
+		}*/
+
+		for(int i = 0; i < g_dotsAmount; i++){
+			for(int j = 0; j < g_dotsAmount; j++){
+				if(g_dots[i].curAreaIndexx != g_dots[j].curAreaIndexx || g_dots[i].curAreaIndexy != g_dots[j].curAreaIndexy || g_dots[i].position == g_dots[j].position)
 					continue;
-				if(CheckCollisionCircles(dots[i].position, CONNECTION_RAD, dots[j].position, dots[j].radius)){
-					DrawLine(dots[i].position.x, dots[i].position.y, dots[j].position.x, dots[j].position.y, BLACK);
+				if(CheckCollisionCircles(g_dots[i].position, g_connectionLenLimit, g_dots[j].position, g_dots[j].radius)){
+					DrawLine(g_dots[i].position.x, g_dots[i].position.y, g_dots[j].position.x, g_dots[j].position.y, BLACK);
 				}
 			}
 		}
 		
+		rlImGuiEnd();
 		EndDrawing();
 	}
 
 	// cleanup
+	rlImGuiShutdown();
 	CloseWindow();
 	return 0;
 }
