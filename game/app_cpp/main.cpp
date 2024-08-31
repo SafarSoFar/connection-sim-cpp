@@ -9,7 +9,10 @@
 #define SCREEN_HEIGHT 800
 #define SCREEN_WIDTH 800
 
-int g_connectionLenLimit = 50;
+int g_connectionLenLimitX = 50;
+int g_connectionLenLimitY = 50;
+bool g_syncLenLimit = true;
+
 float g_velocityRange = 1.0f;
 int g_dotsAmount = 600;
 bool g_showAreaGrid = false;
@@ -101,7 +104,16 @@ int main ()
 		ClearBackground(WHITE);
 		rlImGuiBegin();
 
-		ImGui::SliderInt("Connection length limit", &g_connectionLenLimit, 10,200);
+		ImGui::Checkbox("Sync length limit", &g_syncLenLimit);
+		if(ImGui::SliderInt("Connection length X", &g_connectionLenLimitX, 10,200)){
+			if(g_syncLenLimit)
+				g_connectionLenLimitY = g_connectionLenLimitX;
+		}
+		if(ImGui::SliderInt("Connection length  Y", &g_connectionLenLimitY, 10,200)){
+			if(g_syncLenLimit)
+				g_connectionLenLimitX = g_connectionLenLimitY;
+		}
+
 		if(ImGui::SliderFloat("Velocity Range", &g_velocityRange, 0.5f, 10.0f)){
 			for(int i = 0; i < g_dotsAmount; i++){
 				g_dots[i].SetRandomVelocity();
@@ -116,10 +128,10 @@ int main ()
 
 
 		if(g_showAreaGrid){
-			for(int i = 0; i < SCREEN_WIDTH; i+=g_connectionLenLimit){
+			for(int i = 0; i < SCREEN_WIDTH; i+=g_connectionLenLimitX){
 				DrawLine(i, 0, i, SCREEN_HEIGHT, BLACK);
 			}
-			for(int i = 0; i < SCREEN_HEIGHT; i+=g_connectionLenLimit){
+			for(int i = 0; i < SCREEN_HEIGHT; i+=g_connectionLenLimitY){
 				DrawLine(0, i, SCREEN_WIDTH,i, BLACK);
 			}
 		}
@@ -132,10 +144,10 @@ int main ()
 
 				// Coords in grid
 				if((int)g_dots[i].position.x > 0){
-					x = (int)g_dots[i].position.x * (SCREEN_WIDTH / g_connectionLenLimit) / SCREEN_WIDTH;
+					x = g_dots[i].position.x * (SCREEN_WIDTH / g_connectionLenLimitX) / SCREEN_WIDTH;
 				}
 				if((int)g_dots[i].position.y > 0){
-					y = (int)g_dots[i].position.y * (SCREEN_WIDTH / g_connectionLenLimit) / SCREEN_WIDTH;
+					y = g_dots[i].position.y * (SCREEN_HEIGHT / g_connectionLenLimitY) / SCREEN_HEIGHT;
 				}
 				g_dots[i].curAreaIndexx = x;
 				g_dots[i].curAreaIndexy = y;				
@@ -145,9 +157,7 @@ int main ()
 				for(int j = 0; j < g_dotsAmount; j++){
 					if(g_dots[i].curAreaIndexx != g_dots[j].curAreaIndexx || g_dots[i].curAreaIndexy != g_dots[j].curAreaIndexy || g_dots[i].position == g_dots[j].position)
 						continue;
-					if(CheckCollisionCircles(g_dots[i].position, g_connectionLenLimit, g_dots[j].position, g_dots[j].radius)){
-						DrawLine(g_dots[i].position.x, g_dots[i].position.y, g_dots[j].position.x, g_dots[j].position.y, BLACK);
-					}
+					DrawLine(g_dots[i].position.x, g_dots[i].position.y, g_dots[j].position.x, g_dots[j].position.y, BLACK);
 				}
 			}
 
