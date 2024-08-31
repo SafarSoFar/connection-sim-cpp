@@ -1,6 +1,6 @@
 #include <iostream>
 #include <vector>
-#include <unordered_set>
+#include <set>
 #include <random>
 #include "raylib.h"
 #include "../example_library/src/imgui.h"
@@ -16,7 +16,8 @@ bool g_syncLenLimit = true;
 float g_velocityRange = 1.0f;
 int g_dotsAmount = 600;
 bool g_showAreaGrid = false;
-bool g_dotRadiusCollision = false;
+bool g_isRelativeDotCollisionEnabled = false;
+float g_RelativeDotRadiusCollision = 50.0f;
 
 class Dot;
 
@@ -84,6 +85,90 @@ void CreateDots(){
 }
 
 
+void RenderDebugMenu(){
+	ImGui::Checkbox("Sync length limit", &g_syncLenLimit);
+	if(ImGui::SliderInt("Connection length X", &g_connectionLenLimitX, 10,200)){
+		if(g_syncLenLimit)
+			g_connectionLenLimitY = g_connectionLenLimitX;
+	}
+	if(ImGui::SliderInt("Connection length  Y", &g_connectionLenLimitY, 10,200)){
+		if(g_syncLenLimit)
+			g_connectionLenLimitX = g_connectionLenLimitY;
+	}
+
+	if(ImGui::SliderFloat("Velocity Range", &g_velocityRange, 0.5f, 10.0f)){
+		for(int i = 0; i < g_dotsAmount; i++){
+			g_dots[i].SetRandomVelocity();
+		}
+	}
+	if(ImGui::SliderInt("Dots amount", &g_dotsAmount, 20, 800)){
+		g_dots.clear();
+		CreateDots();
+	}
+	ImGui::Checkbox("Show Area Grid", &g_showAreaGrid);
+	ImGui::Checkbox("Relative radius to dot collision enable *low performance*", &g_isRelativeDotCollisionEnabled);
+	ImGui::SliderFloat("Relative dot collision radius", &g_RelativeDotRadiusCollision, 1.0f, 100.0f);
+
+}
+
+void ShowAreaGrid(){
+	for(int i = 0; i < SCREEN_WIDTH; i+=g_connectionLenLimitX){
+		DrawLine(i, 0, i, SCREEN_HEIGHT, BLACK);
+	}
+	for(int i = 0; i < SCREEN_HEIGHT; i+=g_connectionLenLimitY){
+		DrawLine(0, i, SCREEN_WIDTH,i, BLACK);
+	}	
+}
+
+void ControlDots(){
+	for(int i = 0; i < g_dotsAmount; i++){
+		g_dots[i].Move();
+		DrawCircle(g_dots[i].position.x, g_dots[i].position.y, g_dots[i].radius, BLACK);
+	}
+}
+
+
+void RenderAreaConnection(){
+	// Getting every dot area
+	for(int i = 0; i < g_dotsAmount; i++){
+		int x = 0;
+		int y = 0;
+
+		// Coords in grid
+		if((int)g_dots[i].position.x > 0){
+			x = g_dots[i].position.x * (SCREEN_WIDTH / g_connectionLenLimitX) / SCREEN_WIDTH;
+		}
+		if((int)g_dots[i].position.y > 0){
+			y = g_dots[i].position.y * (SCREEN_HEIGHT / g_connectionLenLimitY) / SCREEN_HEIGHT;
+		}
+		g_dots[i].curAreaIndexx = x;
+		g_dots[i].curAreaIndexy = y;				
+	}
+
+	for(int i = 0; i < g_dotsAmount; i++){
+		for(int j = 0; j < g_dotsAmount; j++){
+			if(i == j || g_dots[i].curAreaIndexx != g_dots[j].curAreaIndexx || g_dots[i].curAreaIndexy != g_dots[j].curAreaIndexy)
+				continue;
+			DrawLine(g_dots[i].position.x, g_dots[i].position.y, g_dots[j].position.x, g_dots[j].position.y, BLACK);
+		}
+	}
+
+}
+
+void RenderRelativeDotRadius(){
+	for(int i = 0; i < g_dotsAmount; i++){
+		for(int j = 0; j < g_dotsAmount; j++){
+			if(i == j)
+				continue;
+			if(CheckCollisionCircles(g_dots[i].position, g_RelativeDotRadiusCollision, g_dots[j].position, g_dots[j].radius)){
+				DrawLineV(g_dots[i].position, g_dots[j].position, BLACK);
+			}
+		}
+	} 
+	//connectionIndices.clear();
+}
+
+
 int main ()
 {
 
@@ -104,64 +189,21 @@ int main ()
 		ClearBackground(WHITE);
 		rlImGuiBegin();
 
-		ImGui::Checkbox("Sync length limit", &g_syncLenLimit);
-		if(ImGui::SliderInt("Connection length X", &g_connectionLenLimitX, 10,200)){
-			if(g_syncLenLimit)
-				g_connectionLenLimitY = g_connectionLenLimitX;
-		}
-		if(ImGui::SliderInt("Connection length  Y", &g_connectionLenLimitY, 10,200)){
-			if(g_syncLenLimit)
-				g_connectionLenLimitX = g_connectionLenLimitY;
-		}
-
-		if(ImGui::SliderFloat("Velocity Range", &g_velocityRange, 0.5f, 10.0f)){
-			for(int i = 0; i < g_dotsAmount; i++){
-				g_dots[i].SetRandomVelocity();
-			}
-		}
-		if(ImGui::SliderInt("Dots amount", &g_dotsAmount, 20, 800)){
-			g_dots.clear();
-			CreateDots();
-		}
-		if(ImGui::Checkbox("Show Area Grid", &g_showAreaGrid));
-		if(ImGui::Checkbox("Dot radius collision *low performance*", &g_dotRadiusCollision));
-
+		RenderDebugMenu();
 
 		if(g_showAreaGrid){
-			for(int i = 0; i < SCREEN_WIDTH; i+=g_connectionLenLimitX){
-				DrawLine(i, 0, i, SCREEN_HEIGHT, BLACK);
-			}
-			for(int i = 0; i < SCREEN_HEIGHT; i+=g_connectionLenLimitY){
-				DrawLine(0, i, SCREEN_WIDTH,i, BLACK);
-			}
+			ShowAreaGrid();
 		}
-		if(!g_dotRadiusCollision){
-			for(int i = 0; i < g_dotsAmount; i++){
-				g_dots[i].Move();
-				DrawCircle(g_dots[i].position.x, g_dots[i].position.y, g_dots[i].radius, BLACK);
-				int x = 0;
-				int y = 0;
 
-				// Coords in grid
-				if((int)g_dots[i].position.x > 0){
-					x = g_dots[i].position.x * (SCREEN_WIDTH / g_connectionLenLimitX) / SCREEN_WIDTH;
-				}
-				if((int)g_dots[i].position.y > 0){
-					y = g_dots[i].position.y * (SCREEN_HEIGHT / g_connectionLenLimitY) / SCREEN_HEIGHT;
-				}
-				g_dots[i].curAreaIndexx = x;
-				g_dots[i].curAreaIndexy = y;				
+		ControlDots();
 
-			}
-			for(int i = 0; i < g_dotsAmount; i++){
-				for(int j = 0; j < g_dotsAmount; j++){
-					if(g_dots[i].curAreaIndexx != g_dots[j].curAreaIndexx || g_dots[i].curAreaIndexy != g_dots[j].curAreaIndexy || g_dots[i].position == g_dots[j].position)
-						continue;
-					DrawLine(g_dots[i].position.x, g_dots[i].position.y, g_dots[j].position.x, g_dots[j].position.y, BLACK);
-				}
-			}
-
+		if(g_isRelativeDotCollisionEnabled){
+			RenderRelativeDotRadius();
 		}
+		else{
+			RenderAreaConnection();
+		}
+	
 
 		
 		rlImGuiEnd();
